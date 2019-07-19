@@ -11,7 +11,7 @@
 #
 # Happy Coding!
 
-service: aws-nodejs # NOTE: update this with your service name
+service: serverless-coordinates # NOTE: update this with your service name
 #app: your-app-name
 #tenant: your-tenant-name
 
@@ -57,15 +57,15 @@ provider:
 #    - exclude-me-dir/**
 
 functions:
-  hello:
-    handler: handler.hello
+  app:
+    index: app.handler
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
-#    events:
-#      - http:
-#          path: users/create
-#          method: get
+   events:
+     - http:
+         path: ANY /
+         method: 'ANY {proxy+}'
 #      - websocket: $connect
 #      - s3: ${env:BUCKET}
 #      - schedule: rate(10 minutes)
@@ -110,3 +110,7 @@ functions:
 #     NewOutput:
 #       Description: "Description for the output"
 #       Value: "Some output value"
+
+# Plugins
+plugins:
+  - serverless-offline
