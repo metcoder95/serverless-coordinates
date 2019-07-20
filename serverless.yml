@@ -58,14 +58,13 @@ provider:
 
 functions:
   app:
-    index: app.handler
-#    The following are a few example events you can configure
-#    NOTE: Please make sure to change your handler code to work with those events
-#    Check the event documentation for details
-   events:
-     - http:
-         path: ANY /
-         method: 'ANY {proxy+}'
+    handler: index.handler
+    #    The following are a few example events you can configure
+    #    NOTE: Please make sure to change your handler code to work with those events
+    #    Check the event documentation for details
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
 #      - websocket: $connect
 #      - s3: ${env:BUCKET}
 #      - schedule: rate(10 minutes)

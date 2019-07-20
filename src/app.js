@@ -1,17 +1,8 @@
-const serverless = require('serverless-http');
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const serverless = require("serverless-http");
 
-const appRoutes = require('./modules');
+const { express } = require("./lib");
+const appRoutes = require("./modules");
 
-const app = express();
-
-app.use(cors());
-app.use(helmet());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: false }));
-
-app.use('/v1', appRoutes);
+const app = express(appRoutes);
 
 module.exports = serverless(app);

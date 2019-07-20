@@ -1,12 +1,39 @@
-const fs = require('fs');
-const chalk = require('chalk');
-const rootPath = require('app-root-path');
+const fs = require("fs");
+const chalk = require("chalk");
+const rootPath = require("app-root-path");
 
-const { piloteers } = require('../../../config');
+const { piloteers } = require("../../../config");
 
 const FILE_PATH = `${rootPath}/${process.env.FILES_DIRECTORY_PATH}`;
 
+const getFileName = fileName => fileName.split('.')[0];
+
 const degreesToRadians = deg => deg * (Math.PI / 180);
+
+const getLinearDistance = (lat, lon) => {
+  const { lon: piloteersLon, lat: piloteersLat } = piloteers;
+
+  const earthRadius = 6371; // km
+  const startLat = degreesToRadians(parseFloat(piloteersLat));
+  const endLat = degreesToRadians(parseFloat(lat));
+  const startLon = degreesToRadians(parseFloat(piloteersLon));
+  const endLon = degreesToRadians(parseFloat(lon));
+
+  const distanceLat = degreesToRadians(endLat - startLat);
+  const distanceLon = degreesToRadians(endLon - startLon);
+
+  const a =
+    Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
+    Math.sin(distanceLon / 2) *
+      Math.sin(distanceLon / 2) *
+      Math.cos(startLat) *
+      Math.cos(endLat);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = earthRadius * c;
+
+  return Math.round(d * Math.pow(10, 2)) / Math.pow(10, 2);
+};
+
 const writeFileAsPromise = (path, data, options) =>
   new Promise((resolve, reject) => {
     fs.writeFile(path, data, options, err => {
@@ -35,7 +62,7 @@ const readDirectoriesAsPromise = path =>
   });
 
 const bufferToString = buffer => {
-  const string = buffer.toString('utf8');
+  const string = buffer.toString("utf8");
   return string;
 };
 
@@ -47,16 +74,27 @@ const bufferToJSON = buffer => {
 };
 
 const writeFile = async (buffer, fileName) => {
-  if (!buffer) throw new Error('writeFile - No buffer as argument');
+  if (!buffer) throw new Error("writeFile - No buffer as argument");
 
-  const filePath = `${FILE_PATH}/${fileName}.json`;
+  const sanitizedFileName = getFileName(fileName);
+
+  const filePath = `${FILE_PATH}/${sanitizedFileName}.json`;
 
   try {
-    const bufferAsString = bufferToString(buffer);
+    const coordinatesContent = bufferToJSON(buffer);
 
-    const result = await writeFileAsPromise(filePath, bufferAsString, {
-      encoding: 'utf8'
-    });
+    const distanceFromPiloteers = getLinearDistance(
+      coordinatesContent.lat,
+      coordinatesContent.lon
+    );
+
+    const result = await writeFileAsPromise(
+      filePath,
+      JSON.stringify({ ...coordinatesContent, distanceFromPiloteers }),
+      {
+        encoding: "utf8"
+      }
+    );
 
     return result;
   } catch (error) {
@@ -73,10 +111,10 @@ const readFile = async (name, asJSON = true) => {
 
   try {
     const fileContent = asJSON
-      ? JSON.stringify(await readFileAsPromise(filePath, { encoding: 'utf8' }))
-      : await readFileAsPromise(filePath, { encoding: 'utf8' });
+      ? JSON.parse(await readFileAsPromise(filePath, { encoding: "utf8" }))
+      : await readFileAsPromise(filePath, { encoding: "utf8" });
 
-    return fileContent;
+    return { name, ...fileContent };
   } catch (error) {
     console.error(
       chalk.red(`readFile - Error Reading File: ${JSON.stringify(error)}`)
@@ -86,10 +124,10 @@ const readFile = async (name, asJSON = true) => {
   }
 };
 
-const readAllFilesAsJSON = async () => {
+const readAllFiles = async () => {
   try {
     const fileNames = (await readDirectoriesAsPromise(FILE_PATH)).map(
-      fileNameWithExtension => fileNameWithExtension.split('.')[0]
+      fileNameWithExtension => fileNameWithExtension.split(".")[0]
     );
 
     const filesPromises = fileNames.map(fileName => readFile(fileName));
@@ -106,25 +144,28 @@ const readAllFilesAsJSON = async () => {
   }
 };
 
-const getLinearDistance = (lat, lon) => {
-  const { lon: piloteersLon, lat: piloteersLat } = piloteers;
-  const earthRadius = 6371; // in km
+const getAllFileNames = async () => {
+  try {
+    const fileNames = (await readDirectoriesAsPromise(FILE_PATH)).map(
+      fileNameWithExtension => fileNameWithExtension.split(".")[0]
+    );
 
-  const pilotLatInRad = degreesToRadians(piloteersLat);
-  const lat2InRad = degreesToRadians(lat);
+    return fileNames;
+  } catch (error) {
+    console.error(
+      chalk.red(`getAllFileNames - Error Retrieving File Names: ${JSON.stringify(error)}`)
+    );
 
-  const resultLon = degreesToRadians(lat - piloteersLon);
-  const resultLat = degreesToRadians(lon - piloteersLat);
+    throw error;
+  }
+};
 
-  const a =
-    Math.sin(resultLat / 2) * Math.sin(resultLon / 2) +
-    Math.cos(pilotLatInRad) *
-      Math.cos(lat2InRad) *
-      Math.sin(resultLon / 2) *
-      Math.sin(resultLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = earthRadius * c;
-
-  return d;
+module.exports = {
+  bufferToString,
+  bufferToJSON,
+  writeFile,
+  readFile,
+  readAllFiles,
+  getLinearDistance,
+  getAllFileNames
 };
